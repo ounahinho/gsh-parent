@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — Atelier GSH</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">🎓</div>
+        <h1 class="auth-title">Connexion</h1>
+        <p class="auth-subtitle">Connectez-vous à votre espace parent</p>
+      </div>
+
+      <div id="alert" class="alert alert-error" style="display:none"></div>
+
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-control"
+          placeholder="votre@email.com">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <input type="password" id="password" class="form-control"
+          placeholder="••••••••">
+      </div>
+
+      <button class="btn btn-primary btn-block" id="loginBtn" onclick="login()">
+        Se connecter
+      </button>
+
+      <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--text-secondary)">
+        Pas encore de compte ?
+        <a href="register.html" style="color:var(--primary);font-weight:600">S'inscrire</a>
+      </p>
+
+      <p style="text-align:center;margin-top:8px">
+        <a href="index.html" style="color:var(--text-secondary);font-size:13px">← Retour à l'accueil</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('loginBtn');
+
+      if (!email || !password) {
+        showAlert('Veuillez remplir tous les champs');
+        return;
+      }
+
+      btn.innerHTML = '<span class="spinner"></span> Connexion...';
+      btn.disabled = true;
+
+      const result = await apiCall('/login', 'POST', { email, password }, false);
+
+      if (result.ok && result.data.token) {
+        setToken(result.data.token);
+        setUser(result.data.user);
+
+        // Vérifie que c'est un parent
+        if (result.data.user.role !== 'parent') {
+          removeToken();
+          showAlert('Ce compte n\'est pas un compte parent');
+          btn.innerHTML = 'Se connecter';
+          btn.disabled = false;
+          return;
+        }
+
+        window.location.href = 'dashboard.html';
+      } else {
+        showAlert(result.data.message || 'Email ou mot de passe incorrect');
+        btn.innerHTML = 'Se connecter';
+        btn.disabled = false;
+      }
+    }
+
+    // Enter key
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') login();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activités — Atelier GSH</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="index.html" class="navbar-brand">
+      <div class="navbar-logo">🎓</div>
+      <span class="navbar-title">Atelier GSH</span>
+    </a>
+    <div class="navbar-nav">
+      <a href="dashboard.html" class="nav-link">Mon espace</a>
+      <a href="activities.html" class="nav-link active">Activités</a>
+      <a href="payments.html" class="nav-link">Paiements</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Déconnexion</button>
+    </div>
+  </nav>
+
+  <!-- Header -->
+  <div style="background:white;border-bottom:1px solid var(--border);padding:32px 24px">
+    <div class="container">
+      <h1 style="font-size:24px;font-weight:700;margin-bottom:8px">Nos activités 📚</h1>
+      <p style="color:var(--text-secondary)">Inscrivez vos enfants aux activités disponibles</p>
+
+      <!-- Filters -->
+      <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap">
+        <select id="filter-type" class="form-control" style="width:auto;min-width:180px" onchange="filterActivities()">
+          <option value="">Tous les types</option>
+          <option value="cours de soutien">Cours de soutien</option>
+          <option value="atelier ludique">Atelier ludique</option>
+          <option value="activité sportive">Activité sportive</option>
+          <option value="cours de langue">Cours de langue</option>
+          <option value="cours de musique">Cours de musique</option>
+        </select>
+        <select id="filter-level" class="form-control" style="width:auto;min-width:150px" onchange="filterActivities()">
+          <option value="">Tous les niveaux</option>
+          <option value="CP">CP</option>
+          <option value="CE1">CE1</option>
+          <option value="CE2">CE2</option>
+          <option value="CM1">CM1</option>
+          <option value="CM2">CM2</option>
+          <option value="6eme">6ème</option>
+          <option value="5eme">5ème</option>
+          <option value="4eme">4ème</option>
+          <option value="3eme">3ème</option>
+        </select>
+        <input type="text" id="filter-search" class="form-control"
+          style="width:auto;min-width:200px"
+          placeholder="🔍 Rechercher..."
+          oninput="filterActivities()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Activities -->
+  <div class="container section">
+    <div id="activities-container">
+      <div class="loading">⏳ Chargement des activités...</div>
+    </div>
+  </div>
+
+  <!-- Modal inscription -->
+  <div class="modal-overlay" id="registerModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">Inscrire mon enfant</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+
+      <div id="modal-alert" class="alert alert-error" style="display:none"></div>
+
+      <input type="hidden" id="selected-activity-id">
+
+      <div style="background:var(--background);border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="font-weight:600;margin-bottom:4px" id="modal-activity-name"></div>
+        <div style="font-size:13px;color:var(--text-secondary)" id="modal-activity-price"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Prénom de l'enfant</label>
+        <input type="text" id="child-firstname" class="form-control" placeholder="Prénom">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Nom de l'enfant</label>
+        <input type="text" id="child-lastname" class="form-control" placeholder="Nom">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Niveau scolaire</label>
+        <select id="child-level" class="form-control">
+          <option value="CP">CP</option>
+          <option value="CE1">CE1</option>
+          <option value="CE2">CE2</option>
+          <option value="CM1">CM1</option>
+          <option value="CM2">CM2</option>
+          <option value="6eme">6ème</option>
+          <option value="5eme">5ème</option>
+          <option value="4eme">4ème</option>
+          <option value="3eme">3ème</option>
+          <option value="2nde">2nde</option>
+          <option value="1ere">1ère</option>
+          <option value="Terminale">Terminale</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Type d'engagement</label>
+        <select id="engagement-type" class="form-control">
+          <option value="mensuel">Mensuel</option>
+          <option value="a_la_seance">À la séance</option>
+          <option value="forfait_3m">Forfait 3 mois</option>
+          <option value="forfait_6m">Forfait 6 mois</option>
+          <option value="forfait_10m">Forfait 10 mois</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="registerBtn" onclick="registerChild()">
+        Confirmer l'inscription
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2026 Atelier GSH — Tous droits réservés</p>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    let allActivities = [];
+
+    async function loadActivities() {
+      const result = await apiCall('/public/activities', 'GET', null, false);
+      const container = document.getElementById('activities-container');
+
+      if (!result.ok) {
+        container.innerHTML = '<p>Impossible de charger les activités.</p>';
+        return;
+      }
+
+      allActivities = result.data;
+      renderActivities(allActivities);
+    }
+
+    function filterActivities() {
+      const type = document.getElementById('filter-type').value.toLowerCase();
+      const level = document.getElementById('filter-level').value.toLowerCase();
+      const search = document.getElementById('filter-search').value.toLowerCase();
+
+      const filtered = allActivities.filter(a => {
+        const matchType = !type || a.type?.toLowerCase() === type;
+        const matchLevel = !level || a.level?.toLowerCase().includes(level);
+        const matchSearch = !search ||
+          a.title?.toLowerCase().includes(search) ||
+          a.type?.toLowerCase().includes(search);
+        return matchType && matchLevel && matchSearch;
+      });
+
+      renderActivities(filtered);
+    }
+
+    function renderActivities(activities) {
+      const container = document.getElementById('activities-container');
+
+      if (activities.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <h3>Aucune activité trouvée</h3>
+            <p>Essayez d'autres filtres</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="grid grid-3">
+          ${activities.map(a => `
+            <div class="activity-card">
+              <div class="activity-header">
+                <div class="activity-icon" style="background:${typeColor(a.type)}22">
+                  <span>${typeEmoji(a.type)}</span>
+                </div>
+                <div>
+                  <div class="activity-title">${a.title}</div>
+                  <div style="font-size:12px;color:var(--text-secondary)">
+                    👤 ${a.teacher?.name || 'N/A'}
+                  </div>
+                </div>
+              </div>
+              <div class="activity-body">
+                <div class="activity-meta">
+                  <span class="badge badge-primary">${a.level}</span>
+                  <span class="badge" style="background:${typeColor(a.type)}22;color:${typeColor(a.type)}">
+                    ${a.type}
+                  </span>
+                </div>
+                ${a.schedules?.length > 0 ? `
+                  <div style="margin-bottom:12px">
+                    ${a.schedules.map(s => `
+                      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">
+                        📅 ${s.day?.charAt(0).toUpperCase() + s.day?.slice(1) || s.day_of_week}
+                        — ${s.start_time?.substring(0,5)} à ${s.end_time?.substring(0,5)}
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+                <div class="activity-price">${formatAmount(a.price_monthly)}/mois</div>
+                <div style="font-size:12px;color:var(--text-secondary)">
+                  💰 ${formatAmount(a.price_per_session)}/séance
+                </div>
+              </div>
+              <div class="activity-footer">
+                <span style="font-size:13px;color:${a.available_spots > 0 ? 'var(--success)' : 'var(--error)'}">
+                  👥 ${a.available_spots}/${a.capacity} places
+                </span>
+                ${a.available_spots > 0 ? `
+                  <button class="btn btn-primary btn-sm" onclick="openModal(${a.id}, '${a.title}', ${a.price_monthly})">
+                    S'inscrire
+                  </button>
+                ` : `
+                  <span class="badge" style="background:#FEE2E2;color:#B91C1C">Complet</span>
+                `}
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+    }
+
+    function openModal(activityId, activityName, price) {
+      if (!isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+      }
+      document.getElementById('selected-activity-id').value = activityId;
+      document.getElementById('modal-activity-name').textContent = activityName;
+      document.getElementById('modal-activity-price').textContent =
+        `Prix mensuel : ${formatAmount(price)}`;
+      document.getElementById('registerModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('registerModal').classList.remove('active');
+      document.getElementById('modal-alert').style.display = 'none';
+    }
+
+    async function registerChild() {
+      const activityId = document.getElementById('selected-activity-id').value;
+      const firstName = document.getElementById('child-firstname').value.trim();
+      const lastName = document.getElementById('child-lastname').value.trim();
+      const level = document.getElementById('child-level').value;
+      const engagementType = document.getElementById('engagement-type').value;
+      const btn = document.getElementById('registerBtn');
+
+      if (!firstName || !lastName) {
+        showAlert('Veuillez remplir le prénom et le nom', 'error', 'modal-alert');
+        return;
+      }
+
+      btn.innerHTML = '<span class="spinner"></span> Inscription...';
+      btn.disabled = true;
+
+      const result = await apiCall('/parent/register-child', 'POST', {
+        first_name: firstName,
+        last_name: lastName,
+        level,
+        activity_id: parseInt(activityId),
+        engagement_type: engagementType,
+      });
+
+      if (result.ok) {
+        closeModal();
+        showAlert('Inscription réussie ! 🎉', 'success', 'alert');
+        setTimeout(() => window.location.href = 'dashboard.html', 2000);
+      } else {
+        showAlert(
+          result.data.message || 'Erreur lors de l\'inscription',
+          'error',
+          'modal-alert'
+        );
+        btn.innerHTML = 'Confirmer l\'inscription';
+        btn.disabled = false;
+      }
+    }
+
+    // Close modal on overlay click
+    document.getElementById('registerModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('registerModal')) closeModal();
+    });
+
+    loadActivities();
+  </script>
+</body>
+</html>

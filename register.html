@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscription — Atelier GSH</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">🎓</div>
+        <h1 class="auth-title">Créer un compte</h1>
+        <p class="auth-subtitle">Inscrivez-vous pour gérer vos enfants</p>
+      </div>
+
+      <div id="alert" class="alert alert-error" style="display:none"></div>
+
+      <div class="form-group">
+        <label class="form-label">Nom complet</label>
+        <input type="text" id="name" class="form-control"
+          placeholder="Votre nom complet">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-control"
+          placeholder="votre@email.com">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Téléphone</label>
+        <input type="tel" id="phone" class="form-control"
+          placeholder="06XXXXXXXX">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <input type="password" id="password" class="form-control"
+          placeholder="Minimum 6 caractères">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Confirmer le mot de passe</label>
+        <input type="password" id="password_confirmation" class="form-control"
+          placeholder="Répétez le mot de passe">
+      </div>
+
+      <button class="btn btn-primary btn-block" id="registerBtn" onclick="register()">
+        Créer mon compte
+      </button>
+
+      <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--text-secondary)">
+        Déjà un compte ?
+        <a href="login.html" style="color:var(--primary);font-weight:600">Se connecter</a>
+      </p>
+
+      <p style="text-align:center;margin-top:8px">
+        <a href="index.html" style="color:var(--text-secondary);font-size:13px">← Retour à l'accueil</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    async function register() {
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const password = document.getElementById('password').value;
+      const password_confirmation = document.getElementById('password_confirmation').value;
+      const btn = document.getElementById('registerBtn');
+
+      if (!name || !email || !password) {
+        showAlert('Veuillez remplir tous les champs obligatoires');
+        return;
+      }
+
+      if (password !== password_confirmation) {
+        showAlert('Les mots de passe ne correspondent pas');
+        return;
+      }
+
+      if (password.length < 6) {
+        showAlert('Le mot de passe doit contenir au moins 6 caractères');
+        return;
+      }
+
+      btn.innerHTML = '<span class="spinner"></span> Création...';
+      btn.disabled = true;
+
+      const result = await apiCall('/parent/register', 'POST', {
+        name, email, phone, password, password_confirmation
+      }, false);
+
+      if (result.ok && result.data.token) {
+        setToken(result.data.token);
+        setUser(result.data.user);
+        window.location.href = 'dashboard.html';
+      } else {
+        const errors = result.data.errors;
+        if (errors) {
+          const firstError = Object.values(errors)[0][0];
+          showAlert(firstError);
+        } else {
+          showAlert(result.data.message || 'Erreur lors de l\'inscription');
+        }
+        btn.innerHTML = 'Créer mon compte';
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

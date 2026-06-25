@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atelier GSH — Espace Parents</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .features { padding: 60px 0; background: white; }
+    .feature-card {
+      text-align: center;
+      padding: 32px 24px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+    .feature-icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+    .feature-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .feature-desc {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    .activities-preview { padding: 60px 0; }
+    .loading-activities {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="index.html" class="navbar-brand">
+      <div class="navbar-logo">🎓</div>
+      <span class="navbar-title">Atelier GSH</span>
+    </a>
+    <div class="navbar-nav">
+      <a href="index.html" class="nav-link active">Accueil</a>
+      <a href="activities.html" class="nav-link">Activités</a>
+      <a href="login.html" class="nav-link">Connexion</a>
+      <a href="register.html" class="btn btn-primary btn-sm">S'inscrire</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>Bienvenue sur l'espace<br>parents Atelier GSH 🎓</h1>
+    <p>Inscrivez vos enfants aux activités, suivez leurs progrès et gérez les paiements en toute simplicité.</p>
+    <div class="hero-btns">
+      <a href="register.html" class="btn btn-white">Créer un compte</a>
+      <a href="activities.html" class="btn btn-outline" style="color:white;border-color:white">Voir les activités</a>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container">
+      <div class="grid grid-3">
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <div class="feature-title">Inscription facile</div>
+          <div class="feature-desc">Inscrivez vos enfants en quelques clics aux activités disponibles.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💳</div>
+          <div class="feature-title">Suivi des paiements</div>
+          <div class="feature-desc">Consultez l'historique des paiements et les montants restants.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <div class="feature-title">Planning clair</div>
+          <div class="feature-desc">Voir les horaires et créneaux de chaque activité.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Activités preview -->
+  <section class="activities-preview" style="background: var(--background);">
+    <div class="container">
+      <h2 class="section-title">Nos activités</h2>
+      <p class="section-subtitle">Découvrez toutes les activités disponibles pour vos enfants</p>
+      <div id="activities-container" class="loading-activities">
+        <div>⏳ Chargement des activités...</div>
+      </div>
+      <div style="text-align:center;margin-top:32px">
+        <a href="activities.html" class="btn btn-primary">Voir toutes les activités</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2026 Atelier GSH — Tous droits réservés</p>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Load preview activities
+    async function loadActivities() {
+      const result = await apiCall('/public/activities', 'GET', null, false);
+      const container = document.getElementById('activities-container');
+
+      if (!result.ok) {
+        container.innerHTML = '<p>Impossible de charger les activités.</p>';
+        return;
+      }
+
+      const activities = result.data.slice(0, 6);
+      if (activities.length === 0) {
+        container.innerHTML = '<p>Aucune activité disponible.</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="grid grid-3">
+          ${activities.map(a => `
+            <div class="activity-card">
+              <div class="activity-header">
+                <div class="activity-icon" style="background:${typeColor(a.type)}22">
+                  <span>${typeEmoji(a.type)}</span>
+                </div>
+                <div>
+                  <div class="activity-title">${a.title}</div>
+                  <div style="font-size:12px;color:var(--text-secondary)">${a.teacher?.name || 'N/A'}</div>
+                </div>
+              </div>
+              <div class="activity-body">
+                <div class="activity-meta">
+                  <span class="badge badge-primary">${a.level}</span>
+                  <span class="badge" style="background:${typeColor(a.type)}22;color:${typeColor(a.type)}">${a.type}</span>
+                </div>
+                <div class="activity-price">${formatAmount(a.price_monthly)}/mois</div>
+              </div>
+              <div class="activity-footer">
+                <span style="font-size:13px;color:var(--text-secondary)">👥 ${a.available_spots}/${a.capacity} places</span>
+                <a href="register.html" class="btn btn-primary btn-sm">S'inscrire</a>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    loadActivities();
+  </script>
+</body>
+</html>

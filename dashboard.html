@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Espace — Atelier GSH</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="index.html" class="navbar-brand">
+      <div class="navbar-logo">🎓</div>
+      <span class="navbar-title">Atelier GSH</span>
+    </a>
+    <div class="navbar-nav">
+      <a href="dashboard.html" class="nav-link active">Mon espace</a>
+      <a href="activities.html" class="nav-link">Activités</a>
+      <a href="payments.html" class="nav-link">Paiements</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Déconnexion</button>
+    </div>
+  </nav>
+
+  <!-- Dashboard Header -->
+  <div class="dashboard-header">
+    <div class="container">
+      <h1 style="font-size:22px;font-weight:700" id="welcome">Bonjour 👋</h1>
+      <p style="color:var(--text-secondary);font-size:14px">Gérez les inscriptions de vos enfants</p>
+    </div>
+  </div>
+
+  <div class="container section">
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#EFF6FF">👨‍👧</div>
+        <div class="stat-value" id="stat-children">-</div>
+        <div class="stat-label">Enfants inscrits</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#D1FAE5">📚</div>
+        <div class="stat-value" id="stat-registrations">-</div>
+        <div class="stat-label">Inscriptions actives</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#FEF3C7">💳</div>
+        <div class="stat-value" id="stat-payments">-</div>
+        <div class="stat-label">Paiements effectués</div>
+      </div>
+    </div>
+
+    <!-- Inscriptions -->
+    <div class="table-container" style="margin-bottom:32px">
+      <div class="table-header">
+        <h2 style="font-size:16px;font-weight:600">Mes inscriptions</h2>
+        <a href="activities.html" class="btn btn-primary btn-sm">+ Nouvelle inscription</a>
+      </div>
+      <div id="registrations-container">
+        <div class="loading">⏳ Chargement...</div>
+      </div>
+    </div>
+
+    <!-- Derniers paiements -->
+    <div class="table-container">
+      <div class="table-header">
+        <h2 style="font-size:16px;font-weight:600">Derniers paiements</h2>
+        <a href="payments.html" class="btn btn-outline btn-sm">Voir tout</a>
+      </div>
+      <div id="payments-container">
+        <div class="loading">⏳ Chargement...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2026 Atelier GSH — Tous droits réservés</p>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    requireAuth();
+
+    const user = getUser();
+    document.getElementById('welcome').textContent = `Bonjour, ${user.name} 👋`;
+
+    async function loadDashboard() {
+      // Load registrations
+      const regResult = await apiCall('/parent/registrations');
+      const regContainer = document.getElementById('registrations-container');
+
+      if (regResult.ok) {
+        const regs = regResult.data;
+        document.getElementById('stat-registrations').textContent =
+          regs.filter(r => r.status === 'active').length;
+
+        // Get unique children
+        const children = [...new Set(regs.map(r => r.student?.id))];
+        document.getElementById('stat-children').textContent = children.length;
+
+        if (regs.length === 0) {
+          regContainer.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📝</div>
+              <h3>Aucune inscription</h3>
+              <p>Inscrivez vos enfants aux activités disponibles</p>
+              <a href="activities.html" class="btn btn-primary" style="margin-top:16px">
+                Voir les activités
+              </a>
+            </div>`;
+        } else {
+          regContainer.innerHTML = `
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Enfant</th>
+                  <th>Activité</th>
+                  <th>Niveau</th>
+                  <th>Début</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${regs.map(r => `
+                  <tr>
+                    <td><strong>${r.student?.first_name} ${r.student?.last_name}</strong></td>
+                    <td>${r.activity?.title || 'N/A'}</td>
+                    <td><span class="badge badge-primary">${r.student?.level || ''}</span></td>
+                    <td>${formatDate(r.start_date)}</td>
+                    <td>${statusBadge(r.status)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`;
+        }
+      }
+
+      // Load payments
+      const payResult = await apiCall('/parent/payments');
+      const payContainer = document.getElementById('payments-container');
+
+      if (payResult.ok) {
+        const payments = payResult.data;
+        document.getElementById('stat-payments').textContent = payments.length;
+
+        if (payments.length === 0) {
+          payContainer.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">💳</div>
+              <h3>Aucun paiement</h3>
+              <p>Vos paiements apparaîtront ici</p>
+            </div>`;
+        } else {
+          payContainer.innerHTML = `
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Enfant</th>
+                  <th>Activité</th>
+                  <th>Date</th>
+                  <th>Montant</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${payments.slice(0, 5).map(p => `
+                  <tr>
+                    <td><strong>${p.registration?.student?.first_name || ''} ${p.registration?.student?.last_name || ''}</strong></td>
+                    <td>${p.registration?.activity?.title || 'N/A'}</td>
+                    <td>${formatDate(p.payment_date)}</td>
+                    <td style="color:var(--success);font-weight:600">${formatAmount(p.amount)}</td>
+                    <td>${statusBadge(p.status)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`;
+        }
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>
