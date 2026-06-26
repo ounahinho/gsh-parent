@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- Navbar -->
   <nav class="navbar">
     <a href="index.html" class="navbar-brand">
       <div class="navbar-logo">🎓</div>
@@ -22,7 +21,6 @@
     </div>
   </nav>
 
-  <!-- Dashboard Header -->
   <div class="dashboard-header">
     <div class="container">
       <h1 style="font-size:22px;font-weight:700" id="welcome">Bonjour 👋</h1>
@@ -32,7 +30,6 @@
 
   <div class="container section">
 
-    <!-- Stats -->
     <div class="stats-grid" id="stats">
       <div class="stat-card">
         <div class="stat-icon" style="background:#EFF6FF">👨‍👧</div>
@@ -51,7 +48,6 @@
       </div>
     </div>
 
-    <!-- Inscriptions -->
     <div class="table-container" style="margin-bottom:32px">
       <div class="table-header">
         <h2 style="font-size:16px;font-weight:600">Mes inscriptions</h2>
@@ -62,7 +58,6 @@
       </div>
     </div>
 
-    <!-- Derniers paiements -->
     <div class="table-container">
       <div class="table-header">
         <h2 style="font-size:16px;font-weight:600">Derniers paiements</h2>
@@ -75,7 +70,6 @@
 
   </div>
 
-  <!-- Footer -->
   <footer class="footer">
     <p>© 2026 Atelier GSH — Tous droits réservés</p>
   </footer>
@@ -88,16 +82,12 @@
     document.getElementById('welcome').textContent = `Bonjour, ${user.name} 👋`;
 
     async function loadDashboard() {
-      // Load registrations
       const regResult = await apiCall('/parent/registrations');
       const regContainer = document.getElementById('registrations-container');
 
       if (regResult.ok) {
         const regs = regResult.data;
-        document.getElementById('stat-registrations').textContent =
-          regs.filter(r => r.status === 'active').length;
-
-        // Get unique children
+        document.getElementById('stat-registrations').textContent = regs.filter(r => r.status === 'active').length;
         const children = [...new Set(regs.map(r => r.student?.id))];
         document.getElementById('stat-children').textContent = children.length;
 
@@ -107,9 +97,7 @@
               <div class="empty-state-icon">📝</div>
               <h3>Aucune inscription</h3>
               <p>Inscrivez vos enfants aux activités disponibles</p>
-              <a href="activities.html" class="btn btn-primary" style="margin-top:16px">
-                Voir les activités
-              </a>
+              <a href="activities.html" class="btn btn-primary" style="margin-top:16px">Voir les activités</a>
             </div>`;
         } else {
           regContainer.innerHTML = `
@@ -121,6 +109,7 @@
                   <th>Niveau</th>
                   <th>Début</th>
                   <th>Statut</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -131,6 +120,12 @@
                     <td><span class="badge badge-primary">${r.student?.level || ''}</span></td>
                     <td>${formatDate(r.start_date)}</td>
                     <td>${statusBadge(r.status)}</td>
+                    <td>
+                      <a href="payments.html?registration_id=${r.id}&amount=${r.activity?.price || 500}&child=${encodeURIComponent(r.student?.first_name + ' ' + r.student?.last_name)}&activity=${encodeURIComponent(r.activity?.title || '')}"
+                         class="btn btn-primary btn-sm">
+                        💳 Payer
+                      </a>
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -138,7 +133,6 @@
         }
       }
 
-      // Load payments
       const payResult = await apiCall('/parent/payments');
       const payContainer = document.getElementById('payments-container');
 

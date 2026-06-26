@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mes Paiements — Atelier GSH</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 
-  <!-- Navbar -->
   <nav class="navbar">
     <a href="index.html" class="navbar-brand">
       <div class="navbar-logo">🎓</div>
@@ -22,7 +22,6 @@
     </div>
   </nav>
 
-  <!-- Header -->
   <div style="background:white;border-bottom:1px solid var(--border);padding:32px 24px">
     <div class="container">
       <h1 style="font-size:24px;font-weight:700;margin-bottom:8px">Mes paiements 💳</h1>
@@ -32,7 +31,6 @@
 
   <div class="container section">
 
-    <!-- Stats -->
     <div class="stats-grid" style="margin-bottom:32px">
       <div class="stat-card">
         <div class="stat-icon" style="background:#D1FAE5">✅</div>
@@ -51,18 +49,15 @@
       </div>
     </div>
 
-    <!-- Payments table -->
     <div class="table-container">
       <div class="table-header">
         <h2 style="font-size:16px;font-weight:600">Historique des paiements</h2>
-        <div style="display:flex;gap:8px">
-          <select id="filter-status" class="form-control" style="width:auto" onchange="filterPayments()">
-            <option value="">Tous les statuts</option>
-            <option value="paid">Payés</option>
-            <option value="pending">En attente</option>
-            <option value="partial">Partiel</option>
-          </select>
-        </div>
+        <select id="filter-status" class="form-control" style="width:auto" onchange="filterPayments()">
+          <option value="">Tous les statuts</option>
+          <option value="paid">Payés</option>
+          <option value="pending">En attente</option>
+          <option value="partial">Partiel</option>
+        </select>
       </div>
       <div id="payments-container">
         <div class="loading">⏳ Chargement...</div>
@@ -71,7 +66,30 @@
 
   </div>
 
-  <!-- Footer -->
+  <!-- Modal Paiement Stripe -->
+  <div id="payment-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:white;border-radius:16px;padding:32px;width:100%;max-width:480px;margin:16px">
+      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">💳 Paiement en ligne</h2>
+      <p id="modal-desc" style="color:var(--text-secondary);font-size:14px;margin-bottom:24px"></p>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">Montant (MAD)</label>
+        <input type="number" id="payment-amount" class="form-control" value="500" min="1">
+      </div>
+
+      <div style="margin-bottom:24px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">Carte bancaire</label>
+        <div id="card-element" style="border:1px solid var(--border);border-radius:8px;padding:12px"></div>
+        <div id="card-errors" style="color:red;font-size:13px;margin-top:8px"></div>
+      </div>
+
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-outline" onclick="closeModal()" style="flex:1">Annuler</button>
+        <button class="btn btn-primary" onclick="submitPayment()" style="flex:1" id="pay-btn">Payer</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
     <p>© 2026 Atelier GSH — Tous droits réservés</p>
   </footer>
@@ -80,6 +98,14 @@
   <script>
     requireAuth();
 
+    const STRIPE_KEY = 'pk_test_51Tmduy0N9rtmuJM2ZtW2RWxkbovM3gDYAJPnlb7hKw9APH8ApQFVpTpmJPBzRke0R2AIy4SCxaBNS9kX2MemBDZl00UhRu2HkB';
+    const stripe = Stripe(STRIPE_KEY);
+    const elements = stripe.elements();
+    const cardElement = elements.create('card', {
+      style: { base: { fontSize: '16px', color: '#1e293b' } }
+    });
+
+    let currentRegistrationId = null;
     let allPayments = [];
 
     async function loadPayments() {
@@ -93,26 +119,85 @@
 
       allPayments = result.data;
 
-      // Stats
-      const totalPaid = allPayments
-        .filter(p => p.status === 'paid')
-        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
-      const totalPending = allPayments
-        .filter(p => p.status === 'pending')
-        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      const totalPaid = allPayments.filter(p => p.status === 'paid').reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      const totalPending = allPayments.filter(p => p.status === 'pending').reduce((sum, p) => sum + parseFloat(p.amount), 0);
 
       document.getElementById('stat-paid').textContent = formatAmount(totalPaid);
       document.getElementById('stat-pending').textContent = formatAmount(totalPending);
       document.getElementById('stat-total').textContent = allPayments.length;
 
       renderPayments(allPayments);
+
+      // Ouvre modal automatiquement si params dans URL
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('registration_id')) {
+        openModal(
+          params.get('registration_id'),
+          params.get('amount') || 500,
+          params.get('child') || '',
+          params.get('activity') || ''
+        );
+      }
+    }
+
+    function openModal(registrationId, amount, child, activity) {
+      currentRegistrationId = registrationId;
+      document.getElementById('payment-amount').value = amount;
+      document.getElementById('modal-desc').textContent = `${child} — ${activity}`;
+      const modal = document.getElementById('payment-modal');
+      modal.style.display = 'flex';
+      cardElement.mount('#card-element');
+    }
+
+    function closeModal() {
+      document.getElementById('payment-modal').style.display = 'none';
+      cardElement.unmount();
+    }
+
+    async function submitPayment() {
+      const btn = document.getElementById('pay-btn');
+      const amount = parseFloat(document.getElementById('payment-amount').value);
+      btn.textContent = 'Traitement...';
+      btn.disabled = true;
+
+      const intentResult = await apiCall('/parent/create-payment-intent', 'POST', {
+        registration_id: currentRegistrationId,
+        amount: amount,
+      });
+
+      if (!intentResult.ok) {
+        document.getElementById('card-errors').textContent = 'Erreur serveur.';
+        btn.textContent = 'Payer';
+        btn.disabled = false;
+        return;
+      }
+
+      const { paymentIntent, error } = await stripe.confirmCardPayment(
+        intentResult.data.client_secret,
+        { payment_method: { card: cardElement } }
+      );
+
+      if (error) {
+        document.getElementById('card-errors').textContent = error.message;
+        btn.textContent = 'Payer';
+        btn.disabled = false;
+        return;
+      }
+
+      await apiCall('/parent/confirm-payment', 'POST', {
+        registration_id: currentRegistrationId,
+        amount: amount,
+        payment_intent: paymentIntent.id,
+      });
+
+      closeModal();
+      alert('✅ Paiement effectué avec succès !');
+      window.location.href = 'payments.html';
     }
 
     function filterPayments() {
       const status = document.getElementById('filter-status').value;
-      const filtered = status
-        ? allPayments.filter(p => p.status === status)
-        : allPayments;
+      const filtered = status ? allPayments.filter(p => p.status === status) : allPayments;
       renderPayments(filtered);
     }
 
@@ -144,18 +229,11 @@
           <tbody>
             ${payments.map(p => `
               <tr>
-                <td>
-                  <strong>
-                    ${p.registration?.student?.first_name || ''}
-                    ${p.registration?.student?.last_name || ''}
-                  </strong>
-                </td>
+                <td><strong>${p.registration?.student?.first_name || ''} ${p.registration?.student?.last_name || ''}</strong></td>
                 <td>${p.registration?.activity?.title || 'N/A'}</td>
                 <td>${formatDate(p.payment_date)}</td>
                 <td>${formatMethod(p.payment_method)}</td>
-                <td style="color:var(--success);font-weight:700">
-                  ${formatAmount(p.amount)}
-                </td>
+                <td style="color:var(--success);font-weight:700">${formatAmount(p.amount)}</td>
                 <td>${statusBadge(p.status)}</td>
               </tr>
             `).join('')}
@@ -168,7 +246,8 @@
         'especes': '💵 Espèces',
         'virement': '🏦 Virement',
         'cheque': '📄 Chèque',
-        'carte': '💳 Carte',
+        'stripe': '💳 Carte',
+        'carte': '💳 Carte'
       };
       return methods[method] || method;
     }
